@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Clients CRM v1.0</title>
+  <title>Clients CRM v1.0.1</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -405,6 +405,29 @@
       text-decoration: none;
     }
 
+    .user-card {
+      margin-bottom: 9px;
+      padding: 13px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+    }
+
+    .user-name {
+      font-weight: 700;
+    }
+
+    .user-meta {
+      margin-top: 5px;
+      color: var(--hint);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .user-state {
+      margin-top: 10px;
+    }
+
     .quick-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -558,7 +581,19 @@
   <div class="topbar">
     <div class="title-row">
       <h1>Клиенты</h1>
-      <div id="roleBadge" class="role"></div>
+
+      <div style="display:flex;align-items:center;gap:7px">
+        <button
+          id="usersButton"
+          class="role hidden"
+          type="button"
+          style="border:0;cursor:pointer"
+        >
+          👥 Пользователи
+        </button>
+
+        <div id="roleBadge" class="role"></div>
+      </div>
     </div>
 
     <div class="search">
@@ -597,6 +632,15 @@
 >
   +
 </button>
+
+<div id="usersOverlay" class="overlay hidden">
+  <div class="overlay-header">
+    <button class="back" onclick="closeUsers()">← Назад</button>
+    <div class="overlay-title">Пользователи CRM</div>
+  </div>
+
+  <div id="usersContent" class="content"></div>
+</div>
 
 <div id="eventsOverlay" class="overlay hidden">
   <div class="overlay-header">
@@ -809,6 +853,9 @@ function boot() {
   document.getElementById('eventWeek')
     .addEventListener('click', () => openEvents('week'));
 
+  document.getElementById('usersButton')
+    .addEventListener('click', openUsers);
+
   apiCall('apiInit', [])
     .then(data => {
       state.role = data.user.role;
@@ -821,6 +868,9 @@ function boot() {
 
       if (state.role === 'ADMIN') {
         document.getElementById('addButton')
+          .classList.remove('hidden');
+
+        document.getElementById('usersButton')
           .classList.remove('hidden');
       }
 
@@ -905,6 +955,212 @@ function isTrustedGoogleOrigin(origin) {
   } catch (error) {
     return false;
   }
+}
+
+
+
+function openUsers() {
+  if (state.role !== 'ADMIN') {
+    return;
+  }
+
+  showLoader();
+
+  apiCall(
+    'apiGetUsers',
+    []
+  )
+    .then(users => {
+      renderUsers(
+        users || []
+      );
+
+      hideLoader();
+
+      document
+        .getElementById('usersOverlay')
+        .classList
+        .remove('hidden');
+    })
+    .catch(error => {
+      hideLoader();
+
+      alert(
+        error.message ||
+        String(error)
+      );
+    });
+}
+
+
+function closeUsers() {
+  document
+    .getElementById('usersOverlay')
+    .classList
+    .add('hidden');
+}
+
+
+function renderUsers(users) {
+  const box =
+    document.getElementById(
+      'usersContent'
+    );
+
+  if (!users.length) {
+    box.innerHTML =
+      '<div class="empty">Пользователей пока нет</div>';
+
+    return;
+  }
+
+  box.innerHTML =
+    users.map(user => {
+      const isAdmin =
+        String(
+          user.role || ''
+        ).toUpperCase() ===
+        'ADMIN';
+
+      const stateText =
+        user.active
+          ? '✅ Доступ включён'
+          : '⛔ Доступ отключён';
+
+      return (
+        '<div class="user-card">' +
+          '<div class="user-name">' +
+            esc(
+              user.name ||
+              user.telegramId
+            ) +
+          '</div>' +
+
+          '<div class="user-meta">' +
+            'Telegram ID: ' +
+            esc(
+              user.telegramId
+            ) +
+            '<br>Роль: ' +
+            esc(
+              user.role
+            ) +
+            '<br>' +
+            stateText +
+          '</div>' +
+
+          (
+            isAdmin
+              ? ''
+              : (
+                  '<div class="user-state">' +
+                    '<button ' +
+                      'class="btn user-access-toggle ' +
+                      (
+                        user.active
+                          ? 'danger'
+                          : ''
+                      ) +
+                      '" ' +
+                      'type="button" ' +
+                      'data-user-id="' +
+                      escAttr(
+                        user.telegramId
+                      ) +
+                      '" ' +
+                      'data-new-active="' +
+                      (
+                        user.active
+                          ? 'false'
+                          : 'true'
+                      ) +
+                      '">' +
+                      (
+                        user.active
+                          ? '⛔ Отключить доступ'
+                          : '✅ Включить доступ'
+                      ) +
+                    '</button>' +
+                  '</div>'
+                )
+          ) +
+        '</div>'
+      );
+    }).join('');
+
+  box
+    .querySelectorAll(
+      '.user-access-toggle'
+    )
+    .forEach(button => {
+      button.addEventListener(
+        'click',
+        function() {
+          const telegramId =
+            this.dataset.userId;
+
+          const active =
+            this.dataset.newActive ===
+            'true';
+
+          setUserActive(
+            telegramId,
+            active
+          );
+        }
+      );
+    });
+}
+
+
+function setUserActive(
+  telegramId,
+  active
+) {
+  if (state.role !== 'ADMIN') {
+    return;
+  }
+
+  if (
+    !confirm(
+      active
+        ? 'Включить доступ этому пользователю?'
+        : 'Отключить доступ этому пользователю?'
+    )
+  ) {
+    return;
+  }
+
+  showLoader();
+
+  apiCall(
+    'apiSetUserActive',
+    [
+      telegramId,
+      active
+    ]
+  )
+    .then(() =>
+      apiCall(
+        'apiGetUsers',
+        []
+      )
+    )
+    .then(users => {
+      renderUsers(
+        users || []
+      );
+
+      hideLoader();
+    })
+    .catch(error => {
+      hideLoader();
+
+      alert(
+        error.message ||
+        String(error)
+      );
+    });
 }
 
 
