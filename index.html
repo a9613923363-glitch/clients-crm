@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Clients CRM — Bridge Test</title>
+  <title>Clients CRM — POST Bridge Test</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -60,14 +60,9 @@
 <body>
 
 <div class="card">
-  <h2>CRM — диагностика bridge</h2>
+  <h2>CRM — POST bridge</h2>
   <div id="status">Запуск…</div>
   <div class="muted" id="details"></div>
-</div>
-
-<div class="card">
-  <strong>События postMessage</strong>
-  <pre id="events">Пока сообщений нет.</pre>
 </div>
 
 <div class="card">
@@ -76,37 +71,67 @@
 </div>
 
 <iframe
-  id="crmBridge"
-  src="https://script.google.com/macros/s/AKfycbyRI0tfKU3q3J77UJdhfkXFphr5kmUNC4wy5PknQZWqHYAIYYHSuiQMlpU6QrJGiDQg/exec?bridge=1">
-</iframe>
+  name="crmBridgeFrame"
+  id="crmBridgeFrame"
+></iframe>
+
+<form
+  id="crmBridgeForm"
+  method="POST"
+  action="https://script.google.com/macros/s/AKfycbyRI0tfKU3q3J77UJdhfkXFphr5kmUNC4wy5PknQZWqHYAIYYHSuiQMlpU6QrJGiDQg/exec?bridge=1"
+  target="crmBridgeFrame"
+>
+  <input type="hidden" name="bridge" value="1">
+  <input type="hidden" name="requestId" id="requestId">
+  <input type="hidden" name="method" value="apiAuthCheck">
+  <input type="hidden" name="initData" id="initData">
+  <input type="hidden" name="args" value="[]">
+</form>
 
 <script>
 const tg = window.Telegram?.WebApp;
+let currentRequestId = '';
 
-let requestId = null;
-let eventLines = [];
-
-function logEvent(text) {
-  eventLines.push(text);
-
-  document.getElementById('events').textContent =
-    eventLines.join('\n\n');
-}
-
-function setStatus(text, cls = '') {
+function setStatus(text, ok = null) {
   const el = document.getElementById('status');
 
-  el.className = cls;
+  if (ok === true) {
+    el.className = 'good';
+  } else if (ok === false) {
+    el.className = 'bad';
+  } else {
+    el.className = '';
+  }
+
   el.textContent = text;
+}
+
+function setResult(value) {
+  document.getElementById('result').textContent =
+    typeof value === 'string'
+      ? value
+      : JSON.stringify(value, null, 2);
+}
+
+function isTrustedGoogleOrigin(origin) {
+  try {
+    const url = new URL(origin);
+
+    return (
+      url.protocol === 'https:' &&
+      (
+        url.hostname === 'script.google.com' ||
+        url.hostname.endsWith('.googleusercontent.com')
+      )
+    );
+  } catch (error) {
+    return false;
+  }
 }
 
 function boot() {
   if (!tg) {
-    setStatus(
-      '❌ Telegram.WebApp не найден',
-      'bad'
-    );
-
+    setStatus('❌ Telegram.WebApp не найден', false);
     return;
   }
 
@@ -119,125 +144,56 @@ function boot() {
     'initData length: ' + initData.length;
 
   if (!initData) {
-    setStatus(
-      '❌ Telegram не передал initData',
-      'bad'
-    );
-
+    setStatus('❌ Telegram не передал initData', false);
     return;
   }
 
-  setStatus(
-    'Telegram initData получен. Жду любое сообщение от bridge…'
-  );
+  currentRequestId =
+    'REQ-' +
+    Date.now() +
+    '-' +
+    Math.random().toString(16).slice(2);
+
+  document.getElementById('requestId').value =
+    currentRequestId;
+
+  document.getElementById('initData').value =
+    initData;
+
+  setStatus('Telegram initData получен. Отправляю в Apps Script…');
+
+  document.getElementById('crmBridgeForm').submit();
 }
 
-window.addEventListener(
-  'message',
-  function(event) {
+window.addEventListener('message', function(event) {
+  if (!isTrustedGoogleOrigin(event.origin)) {
+    return;
+  }
 
-    const data = event.data || {};
+  const message = event.data || {};
 
-    logEvent(
-      'origin: ' +
-      event.origin +
-      '\ntype: ' +
-      String(data.type || '—')
+  if (
+    message.type !== 'CRM_API_RESPONSE' ||
+    message.requestId !== currentRequestId
+  ) {
+    return;
+  }
+
+  if (message.ok) {
+    setStatus(
+      '✅ Авторизация подтверждена: ' +
+      (message.result?.user?.role || 'роль не определена'),
+      true
     );
 
-    if (
-      data.type ===
-      'CRM_BRIDGE_READY'
-    ) {
-
-      setStatus(
-        'Bridge ответил. Отправляю initData…',
-        'good'
-      );
-
-      requestId =
-        'REQ-' +
-        Date.now() +
-        '-' +
-        Math.random()
-          .toString(16)
-          .slice(2);
-
-      document
-        .getElementById('crmBridge')
-        .contentWindow
-        .postMessage(
-          {
-            type:
-              'CRM_API_REQUEST',
-
-            requestId:
-              requestId,
-
-            method:
-              'apiAuthCheck',
-
-            args: [
-              tg.initData
-            ]
-          },
-
-          event.origin
-        );
-
-      return;
-    }
-
-    if (
-      data.type ===
-        'CRM_API_RESPONSE' &&
-      data.requestId ===
-        requestId
-    ) {
-
-      if (data.ok) {
-
-        setStatus(
-          '✅ Авторизация подтверждена: ' +
-          (
-            data.result?.user?.role ||
-            'роль не определена'
-          ),
-          'good'
-        );
-
-        document
-          .getElementById('result')
-          .textContent =
-            JSON.stringify(
-              data.result,
-              null,
-              2
-            );
-
-      } else {
-
-        setStatus(
-          '❌ Apps Script вернул ошибку',
-          'bad'
-        );
-
-        document
-          .getElementById('result')
-          .textContent =
-            String(
-              data.error ||
-              'Неизвестная ошибка'
-            );
-      }
-    }
+    setResult(message.result);
+  } else {
+    setStatus('❌ Apps Script отклонил запрос', false);
+    setResult(message.error || 'Неизвестная ошибка');
   }
-);
+});
 
-document.addEventListener(
-  'DOMContentLoaded',
-  boot
-);
+document.addEventListener('DOMContentLoaded', boot);
 </script>
 
 </body>
