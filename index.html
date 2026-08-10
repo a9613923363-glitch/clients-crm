@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Clients CRM v32.1</title>
+  <title>Clients CRM VIEWER Security Test</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -160,6 +160,17 @@
       padding: 40px 20px;
       text-align: center;
       color: var(--hint);
+    }
+
+    .viewer-test {
+      margin-top: 10px;
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px dashed var(--border);
+      border-radius: 11px;
+      background: var(--card);
+      color: var(--text);
+      font-size: 13px;
     }
 
     .fab {
@@ -404,6 +415,14 @@
     <div class="search">
       <input id="searchInput" type="search" placeholder="Поиск по ФИО, телефону, делу…">
     </div>
+
+    <button
+      id="viewerProtectionTest"
+      class="viewer-test hidden"
+      type="button"
+    >
+      🔒 Проверить серверную защиту VIEWER
+    </button>
   </div>
 
   <div id="tabs" class="tabs"></div>
@@ -613,6 +632,9 @@ function boot() {
   document.getElementById('addButton')
     .addEventListener('click', openCreate);
 
+  document.getElementById('viewerProtectionTest')
+    .addEventListener('click', testViewerProtection);
+
   apiCall('apiInit', [])
     .then(data => {
       state.role = data.user.role;
@@ -625,6 +647,9 @@ function boot() {
 
       if (state.role === 'ADMIN') {
         document.getElementById('addButton')
+          .classList.remove('hidden');
+      } else if (state.role === 'VIEWER') {
+        document.getElementById('viewerProtectionTest')
           .classList.remove('hidden');
       }
 
@@ -1139,6 +1164,56 @@ function restoreClient() {
       alert(error.message || String(error));
     });
 }
+
+
+function testViewerProtection() {
+  if (state.role !== 'VIEWER') {
+    alert('Тест предназначен только для VIEWER.');
+    return;
+  }
+
+  showLoader();
+
+  apiCall(
+    'apiArchiveClient',
+    ['TEST-NONEXISTENT-CLIENT-ID']
+  )
+    .then(() => {
+      hideLoader();
+
+      alert(
+        '❌ ВНИМАНИЕ: сервер разрешил защищённую операцию VIEWER. ' +
+        'Это ошибка, дальнейшее тестирование остановить.'
+      );
+    })
+    .catch(error => {
+      hideLoader();
+
+      const message =
+        error && error.message
+          ? error.message
+          : String(error);
+
+      const normalized =
+        message.toLowerCase();
+
+      if (
+        normalized.includes('только администратору') ||
+        normalized.includes('недостаточно прав')
+      ) {
+        alert(
+          '✅ Серверная защита работает.\n\n' +
+          message
+        );
+      } else {
+        alert(
+          '⚠️ Получен другой ответ сервера:\n\n' +
+          message
+        );
+      }
+    });
+}
+
 
 function refreshClients() {
   return apiCall('apiGetClients', [false])
