@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Clients CRM</title>
+  <title>Clients CRM v31.1</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -471,6 +471,14 @@
             <input id="eExpert">
           </div>
         </div>
+
+        <div style="margin-top:11px">
+          <label>Комментарий</label>
+          <textarea
+            id="eComment"
+            placeholder="Текущий комментарий по клиенту"
+          ></textarea>
+        </div>
       </div>
 
       <div class="section">
@@ -914,6 +922,7 @@ function openEdit() {
   document.getElementById('eNextDate').value = dateToInput(c.nextDate);
   document.getElementById('eNextTime').value = c.nextTime || '';
   document.getElementById('eExpert').value = c.expert || '';
+  document.getElementById('eComment').value = c.comment || '';
   document.getElementById('eScans').value = c.scans || '';
   document.getElementById('eCaseCard').value = c.caseCard || '';
   document.getElementById('eTotal').value =
@@ -947,6 +956,7 @@ function saveEdit(event) {
     nextDate: val('eNextDate'),
     nextTime: val('eNextTime'),
     expert: val('eExpert'),
+    comment: val('eComment'),
     scans: val('eScans'),
     caseCard: val('eCaseCard'),
     totalPayment: val('eTotal'),
