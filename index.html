@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Clients CRM v32</title>
+  <title>Clients CRM v32.1</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -165,8 +165,15 @@
     .fab {
       position: fixed;
       right: 18px;
-      bottom: calc(18px + env(safe-area-inset-bottom));
-      z-index: 25;
+
+      /*
+       * На мобильном Telegram нижняя служебная зона
+       * перекрывает край viewport. Поэтому кнопку
+       * поднимаем выше + учитываем safe-area iPhone.
+       */
+      bottom: calc(82px + env(safe-area-inset-bottom));
+
+      z-index: 1000;
       width: 56px;
       height: 56px;
       border: 0;
@@ -176,6 +183,12 @@
       font-size: 30px;
       line-height: 1;
       box-shadow: 0 5px 18px rgba(0,0,0,.22);
+    }
+
+    @media (min-width: 700px) {
+      .fab {
+        bottom: 24px;
+      }
     }
 
     .loader {
