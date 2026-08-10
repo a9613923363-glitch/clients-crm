@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Clients CRM v31.1</title>
+  <title>Clients CRM v32</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -160,6 +160,22 @@
       padding: 40px 20px;
       text-align: center;
       color: var(--hint);
+    }
+
+    .fab {
+      position: fixed;
+      right: 18px;
+      bottom: calc(18px + env(safe-area-inset-bottom));
+      z-index: 25;
+      width: 56px;
+      height: 56px;
+      border: 0;
+      border-radius: 50%;
+      background: var(--button);
+      color: var(--button-text);
+      font-size: 30px;
+      line-height: 1;
+      box-shadow: 0 5px 18px rgba(0,0,0,.22);
     }
 
     .loader {
@@ -383,6 +399,15 @@
 
 </div>
 
+<button
+  id="addButton"
+  class="fab hidden"
+  title="Добавить клиента"
+  aria-label="Добавить клиента"
+>
+  +
+</button>
+
 <div id="clientOverlay" class="overlay hidden">
   <div class="overlay-header">
     <button class="back" onclick="closeClient()">← Назад</button>
@@ -395,7 +420,7 @@
 <div id="editOverlay" class="overlay hidden">
   <div class="overlay-header">
     <button class="back" onclick="closeEdit()">← Назад</button>
-    <div class="overlay-title">Редактирование</div>
+    <div id="formTitle" class="overlay-title">Редактирование</div>
   </div>
 
   <div class="content">
@@ -544,6 +569,7 @@ const state = {
   activeTab: 'Все клиенты',
   currentClient: null,
   currentClientData: null,
+  formMode: 'edit',
   pending: new Map()
 };
 
@@ -571,6 +597,9 @@ function boot() {
   document.getElementById('editForm')
     .addEventListener('submit', saveEdit);
 
+  document.getElementById('addButton')
+    .addEventListener('click', openCreate);
+
   apiCall('apiInit', [])
     .then(data => {
       state.role = data.user.role;
@@ -580,6 +609,11 @@ function boot() {
 
       document.getElementById('roleBadge').textContent =
         state.role === 'ADMIN' ? 'Администратор' : 'Просмотр';
+
+      if (state.role === 'ADMIN') {
+        document.getElementById('addButton')
+          .classList.remove('hidden');
+      }
 
       buildTabs();
       renderClients();
@@ -899,8 +933,39 @@ function renderClientDetail(data) {
   document.getElementById('clientContent').innerHTML = html;
 }
 
+function openCreate() {
+  if (state.role !== 'ADMIN') return;
+
+  state.formMode = 'create';
+
+  document.getElementById('formTitle').textContent =
+    'Новый клиент';
+
+  document.getElementById('editForm').reset();
+
+  document.getElementById('eStatus').innerHTML =
+    state.statuses.map(status =>
+      '<option value="' + escAttr(status) + '">' + esc(status) + '</option>'
+    ).join('');
+
+  document.getElementById('eStatus').value =
+    state.statuses.includes('Подготовка')
+      ? 'Подготовка'
+      : (state.statuses[0] || '');
+
+  document.getElementById('eBalanceType').value = 'amount';
+
+  document.getElementById('editOverlay')
+    .classList.remove('hidden');
+}
+
 function openEdit() {
   if (state.role !== 'ADMIN' || !state.currentClient) return;
+
+  state.formMode = 'edit';
+
+  document.getElementById('formTitle').textContent =
+    'Редактирование';
 
   const c = state.currentClient;
 
@@ -941,7 +1006,14 @@ function closeEdit() {
 function saveEdit(event) {
   event.preventDefault();
 
-  if (state.role !== 'ADMIN' || !state.currentClient) return;
+  if (state.role !== 'ADMIN') return;
+
+  if (
+    state.formMode === 'edit' &&
+    !state.currentClient
+  ) {
+    return;
+  }
 
   const payload = {
     name: val('eName'),
@@ -966,13 +1038,21 @@ function saveEdit(event) {
 
   showLoader();
 
-  apiCall('apiUpdateClient', [state.currentClient.id, payload])
+  const request =
+    state.formMode === 'create'
+      ? apiCall('apiCreateClient', [payload])
+      : apiCall('apiUpdateClient', [state.currentClient.id, payload]);
+
+  request
     .then(data => {
       state.currentClient = data.client;
       state.currentClientData = data;
 
       closeEdit();
       renderClientDetail(data);
+
+      document.getElementById('clientOverlay')
+        .classList.remove('hidden');
 
       return refreshClients();
     })
