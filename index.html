@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Clients CRM v35</title>
+  <title>Clients CRM v36</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -403,6 +403,54 @@
       color: var(--link);
       text-align: center;
       text-decoration: none;
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .quick-btn {
+      padding: 11px 10px;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--card);
+      color: var(--text);
+      text-align: left;
+      line-height: 1.25;
+    }
+
+    .quick-btn strong {
+      display: block;
+      margin-top: 3px;
+      font-size: 13px;
+      color: var(--hint);
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .quick-panel {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .quick-panel-title {
+      margin-bottom: 7px;
+      font-weight: 700;
+    }
+
+    .quick-panel-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .quick-panel-actions .btn {
+      flex: 1;
     }
 
     .actions {
@@ -1367,6 +1415,35 @@ function renderClientDetail(data) {
   if (admin) {
     html +=
       '<div class="section">' +
+        '<div class="section-title">⚡ Быстрые действия</div>' +
+        '<div class="quick-grid">' +
+
+          '<button class="quick-btn" onclick="openQuickAction(\'status\')">' +
+            '📌 Статус' +
+            '<strong>' + esc(client.status || '—') + '</strong>' +
+          '</button>' +
+
+          '<button class="quick-btn" onclick="openQuickAction(\'date\')">' +
+            '📅 Следующая дата' +
+            '<strong>' + esc(client.nextDate || '—') + '</strong>' +
+          '</button>' +
+
+          '<button class="quick-btn" onclick="openQuickAction(\'time\')">' +
+            '🕐 Время' +
+            '<strong>' + esc(client.nextTime || '—') + '</strong>' +
+          '</button>' +
+
+          '<button class="quick-btn" onclick="openQuickAction(\'comment\')">' +
+            '💬 Комментарий' +
+            '<strong>' + esc(client.comment || '—') + '</strong>' +
+          '</button>' +
+
+        '</div>' +
+
+        '<div id="quickPanel" class="quick-panel hidden"></div>' +
+      '</div>' +
+
+      '<div class="section">' +
         '<div class="section-title">Действия</div>' +
         '<div class="actions">' +
           '<button class="btn" onclick="openEdit()">✏️ Редактировать</button>' +
@@ -1457,6 +1534,235 @@ function openCreate() {
   document.getElementById('editOverlay')
     .classList.remove('hidden');
 }
+
+
+function openQuickAction(type) {
+  if (
+    state.role !== 'ADMIN' ||
+    !state.currentClient
+  ) {
+    return;
+  }
+
+  const c = state.currentClient;
+  const panel = document.getElementById('quickPanel');
+
+  if (!panel) return;
+
+  let html = '';
+
+  if (type === 'status') {
+    html =
+      '<div class="quick-panel-title">📌 Новый статус</div>' +
+      '<select id="quickValue">' +
+        state.statuses.map(status =>
+          '<option value="' +
+            escAttr(status) +
+            '"' +
+            (
+              status === c.status
+                ? ' selected'
+                : ''
+            ) +
+          '>' +
+            esc(status) +
+          '</option>'
+        ).join('') +
+      '</select>';
+
+  } else if (type === 'date') {
+    html =
+      '<div class="quick-panel-title">📅 Следующая дата</div>' +
+      '<input id="quickValue" type="date" value="' +
+        escAttr(dateToInput(c.nextDate)) +
+      '">';
+
+  } else if (type === 'time') {
+    html =
+      '<div class="quick-panel-title">🕐 Время</div>' +
+      '<input id="quickValue" type="time" value="' +
+        escAttr(c.nextTime || '') +
+      '">';
+
+  } else if (type === 'comment') {
+    html =
+      '<div class="quick-panel-title">💬 Комментарий</div>' +
+      '<textarea id="quickValue" placeholder="Комментарий…">' +
+        esc(c.comment || '') +
+      '</textarea>';
+  } else {
+    return;
+  }
+
+  html +=
+    '<div class="quick-panel-actions">' +
+      '<button class="btn secondary" type="button" onclick="closeQuickAction()">Отмена</button>' +
+      '<button class="btn" type="button" onclick="saveQuickAction(\\'' +
+        escAttr(type) +
+      '\\')">Сохранить</button>' +
+    '</div>';
+
+  panel.innerHTML = html;
+  panel.classList.remove('hidden');
+}
+
+
+function closeQuickAction() {
+  const panel =
+    document.getElementById('quickPanel');
+
+  if (!panel) return;
+
+  panel.innerHTML = '';
+  panel.classList.add('hidden');
+}
+
+
+function currentClientPayload() {
+  const c =
+    state.currentClient || {};
+
+  return {
+    name:
+      c.name || '',
+
+    phone:
+      c.phone || '',
+
+    receivedDate:
+      dateToInput(
+        c.receivedDate
+      ),
+
+    powerOfAttorney:
+      Boolean(
+        c.powerOfAttorney
+      ),
+
+    defendant:
+      c.defendant || '',
+
+    status:
+      c.status || 'Подготовка',
+
+    sentToCourtDate:
+      dateToInput(
+        c.sentToCourtDate
+      ),
+
+    judge:
+      c.judge || '',
+
+    caseNumber:
+      c.caseNumber || '',
+
+    nextDate:
+      dateToInput(
+        c.nextDate
+      ),
+
+    nextTime:
+      c.nextTime || '',
+
+    expert:
+      c.expert || '',
+
+    comment:
+      c.comment || '',
+
+    scans:
+      c.scans || '',
+
+    caseCard:
+      c.caseCard || '',
+
+    totalPayment:
+      Number(
+        c.totalPayment || 0
+      ),
+
+    balance:
+      Number(
+        c.balance || 0
+      ),
+
+    balanceType:
+      'amount'
+  };
+}
+
+
+function saveQuickAction(type) {
+  if (
+    state.role !== 'ADMIN' ||
+    !state.currentClient
+  ) {
+    return;
+  }
+
+  const input =
+    document.getElementById('quickValue');
+
+  if (!input) return;
+
+  const payload =
+    currentClientPayload();
+
+  const value =
+    input.value;
+
+  if (type === 'status') {
+    payload.status = value;
+
+  } else if (type === 'date') {
+    payload.nextDate = value;
+
+  } else if (type === 'time') {
+    payload.nextTime = value;
+
+  } else if (type === 'comment') {
+    payload.comment =
+      String(value || '').trim();
+
+  } else {
+    return;
+  }
+
+  showLoader();
+
+  apiCall(
+    'apiUpdateClient',
+    [
+      state.currentClient.id,
+      payload
+    ]
+  )
+    .then(data => {
+      state.currentClient =
+        data.client;
+
+      state.currentClientData =
+        data;
+
+      renderClientDetail(
+        data
+      );
+
+      return refreshClients();
+    })
+    .then(() => {
+      hideLoader();
+    })
+    .catch(error => {
+      hideLoader();
+
+      alert(
+        error.message ||
+        String(error)
+      );
+    });
+}
+
 
 function openEdit() {
   if (state.role !== 'ADMIN' || !state.currentClient) return;
