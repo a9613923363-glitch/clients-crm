@@ -2,53 +2,292 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Clients CRM — POST Bridge Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Clients CRM</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <style>
+    :root {
+      --bg: var(--tg-theme-bg-color, #f3f4f6);
+      --card: var(--tg-theme-secondary-bg-color, #ffffff);
+      --text: var(--tg-theme-text-color, #111827);
+      --hint: var(--tg-theme-hint-color, #6b7280);
+      --link: var(--tg-theme-link-color, #2481cc);
+      --button: var(--tg-theme-button-color, #2481cc);
+      --button-text: var(--tg-theme-button-text-color, #ffffff);
+      --border: rgba(127,127,127,.22);
+      --danger: #b42318;
+      --success: #16803a;
+      --radius: 15px;
+    }
+
+    * { box-sizing: border-box; }
+
     body {
       margin: 0;
-      padding: 18px;
+      background: var(--bg);
+      color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-      background: var(--tg-theme-bg-color, #f4f5f7);
-      color: var(--tg-theme-text-color, #111);
     }
 
-    .card {
-      max-width: 680px;
-      margin: 0 auto 14px;
-      padding: 16px;
-      border-radius: 14px;
-      background: var(--tg-theme-secondary-bg-color, #fff);
+    button, input { font: inherit; }
+
+    .hidden { display: none !important; }
+
+    .app {
+      max-width: 900px;
+      margin: 0 auto;
+      padding-bottom: 30px;
     }
 
-    h2 {
-      margin-top: 0;
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--bg);
+      padding: max(12px, env(safe-area-inset-top)) 12px 10px;
+      border-bottom: 1px solid var(--border);
     }
 
-    .good {
-      color: #16803a;
-      font-weight: 700;
+    .title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
     }
 
-    .bad {
-      color: #b42318;
-      font-weight: 700;
+    h1 {
+      margin: 0;
+      font-size: 21px;
     }
 
-    .muted {
-      color: var(--tg-theme-hint-color, #666);
+    .role {
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: var(--card);
+      color: var(--hint);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .search {
+      margin-top: 10px;
+    }
+
+    .search input {
+      width: 100%;
+      padding: 11px 13px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--card);
+      color: var(--text);
+      outline: none;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 7px;
+      padding: 10px 12px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .tabs::-webkit-scrollbar { display: none; }
+
+    .tab {
+      flex: 0 0 auto;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .tab.active {
+      background: var(--button);
+      color: var(--button-text);
+      border-color: var(--button);
+    }
+
+    .summary {
+      padding: 0 14px 8px;
+      color: var(--hint);
       font-size: 13px;
     }
 
-    pre {
+    .list {
+      padding: 0 10px;
+    }
+
+    .client {
+      margin-bottom: 9px;
+      padding: 13px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+      cursor: pointer;
+    }
+
+    .client-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .client-name {
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+
+    .status {
+      flex: 0 0 auto;
+      padding: 4px 7px;
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--hint);
+      font-size: 11px;
+    }
+
+    .client-line {
+      margin-top: 7px;
+      color: var(--hint);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .client-line strong {
+      color: var(--text);
+    }
+
+    .comment {
+      white-space: pre-wrap;
+    }
+
+    .empty {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--hint);
+    }
+
+    .loader {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.16);
+    }
+
+    .loader-box {
+      padding: 18px 22px;
+      border-radius: 14px;
+      background: var(--card);
+      color: var(--text);
+      box-shadow: 0 5px 24px rgba(0,0,0,.18);
+    }
+
+    .error {
+      max-width: 700px;
+      margin: 30px auto;
+      padding: 18px;
+      border-radius: 14px;
+      background: var(--card);
+      color: var(--danger);
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      overflow-y: auto;
+      background: var(--bg);
+    }
+
+    .overlay-header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: max(12px, env(safe-area-inset-top)) 12px 11px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .back {
+      border: 0;
+      background: transparent;
+      color: var(--link);
+      padding: 6px;
+      cursor: pointer;
+    }
+
+    .overlay-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .content {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 12px 12px 50px;
+    }
+
+    .section {
+      margin-bottom: 11px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+    }
+
+    .section-title {
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+
+    .detail-row {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-row:last-child {
+      border-bottom: 0;
+    }
+
+    .detail-label {
+      color: var(--hint);
+      font-size: 12px;
+    }
+
+    .detail-value {
+      margin-top: 3px;
       white-space: pre-wrap;
       word-break: break-word;
-      background: rgba(127,127,127,.08);
-      padding: 12px;
-      border-radius: 10px;
+    }
+
+    .detail-value a {
+      color: var(--link);
+    }
+
+    .link-btn {
+      display: block;
+      margin-top: 8px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      color: var(--link);
+      text-align: center;
+      text-decoration: none;
     }
 
     iframe {
@@ -59,15 +298,42 @@
 
 <body>
 
-<div class="card">
-  <h2>CRM — POST bridge</h2>
-  <div id="status">Запуск…</div>
-  <div class="muted" id="details"></div>
+<div id="loader" class="loader">
+  <div class="loader-box">Загрузка CRM…</div>
 </div>
 
-<div class="card">
-  <strong>Ответ сервера</strong>
-  <pre id="result">—</pre>
+<div id="errorBox" class="error hidden"></div>
+
+<div id="app" class="app hidden">
+
+  <div class="topbar">
+    <div class="title-row">
+      <h1>Клиенты</h1>
+      <div id="roleBadge" class="role"></div>
+    </div>
+
+    <div class="search">
+      <input
+        id="searchInput"
+        type="search"
+        placeholder="Поиск по ФИО, телефону, делу…"
+      >
+    </div>
+  </div>
+
+  <div id="tabs" class="tabs"></div>
+  <div id="summary" class="summary"></div>
+  <div id="clientList" class="list"></div>
+
+</div>
+
+<div id="clientOverlay" class="overlay hidden">
+  <div class="overlay-header">
+    <button class="back" onclick="closeClient()">← Назад</button>
+    <div id="clientTitle" class="overlay-title">Клиент</div>
+  </div>
+
+  <div id="clientContent" class="content"></div>
 </div>
 
 <iframe
@@ -82,36 +348,122 @@
   target="crmBridgeFrame"
 >
   <input type="hidden" name="bridge" value="1">
-  <input type="hidden" name="requestId" id="requestId">
-  <input type="hidden" name="method" value="apiAuthCheck">
-  <input type="hidden" name="initData" id="initData">
-  <input type="hidden" name="args" value="[]">
+  <input type="hidden" name="requestId" id="bridgeRequestId">
+  <input type="hidden" name="method" id="bridgeMethod">
+  <input type="hidden" name="initData" id="bridgeInitData">
+  <input type="hidden" name="args" id="bridgeArgs">
 </form>
 
 <script>
 const tg = window.Telegram?.WebApp;
-let currentRequestId = '';
 
-function setStatus(text, ok = null) {
-  const el = document.getElementById('status');
+const state = {
+  initData: '',
+  role: '',
+  user: null,
+  statuses: [],
+  clients: [],
+  activeTab: 'Все клиенты',
+  currentClient: null,
+  pending: new Map()
+};
 
-  if (ok === true) {
-    el.className = 'good';
-  } else if (ok === false) {
-    el.className = 'bad';
-  } else {
-    el.className = '';
+document.addEventListener('DOMContentLoaded', boot);
+
+function boot() {
+  if (!tg) {
+    fatal('Telegram.WebApp не найден.');
+    return;
   }
 
-  el.textContent = text;
+  tg.ready();
+  tg.expand();
+
+  state.initData = tg.initData || '';
+
+  if (!state.initData) {
+    fatal('Telegram не передал данные авторизации.');
+    return;
+  }
+
+  document
+    .getElementById('searchInput')
+    .addEventListener('input', renderClients);
+
+  apiCall('apiInit', [])
+    .then(data => {
+      state.role = data.user.role;
+      state.user = data.user;
+      state.statuses = data.statuses || [];
+      state.clients = data.clients || [];
+
+      document.getElementById('roleBadge').textContent =
+        state.role === 'ADMIN'
+          ? 'Администратор'
+          : 'Просмотр';
+
+      buildTabs();
+      renderClients();
+
+      hideLoader();
+      document.getElementById('app').classList.remove('hidden');
+    })
+    .catch(error => {
+      fatal(error.message || String(error));
+    });
 }
 
-function setResult(value) {
-  document.getElementById('result').textContent =
-    typeof value === 'string'
-      ? value
-      : JSON.stringify(value, null, 2);
+function apiCall(method, args) {
+  return new Promise((resolve, reject) => {
+    const requestId =
+      'REQ-' +
+      Date.now() +
+      '-' +
+      Math.random().toString(16).slice(2);
+
+    state.pending.set(requestId, { resolve, reject });
+
+    document.getElementById('bridgeRequestId').value = requestId;
+    document.getElementById('bridgeMethod').value = method;
+    document.getElementById('bridgeInitData').value = state.initData;
+    document.getElementById('bridgeArgs').value = JSON.stringify(args || []);
+
+    document.getElementById('crmBridgeForm').submit();
+
+    setTimeout(() => {
+      if (state.pending.has(requestId)) {
+        state.pending.delete(requestId);
+        reject(new Error('Сервер не ответил вовремя.'));
+      }
+    }, 20000);
+  });
 }
+
+window.addEventListener('message', function(event) {
+  if (!isTrustedGoogleOrigin(event.origin)) {
+    return;
+  }
+
+  const message = event.data || {};
+
+  if (message.type !== 'CRM_API_RESPONSE') {
+    return;
+  }
+
+  const pending = state.pending.get(message.requestId);
+
+  if (!pending) {
+    return;
+  }
+
+  state.pending.delete(message.requestId);
+
+  if (message.ok) {
+    pending.resolve(message.result);
+  } else {
+    pending.reject(new Error(message.error || 'Ошибка Apps Script.'));
+  }
+});
 
 function isTrustedGoogleOrigin(origin) {
   try {
@@ -129,71 +481,297 @@ function isTrustedGoogleOrigin(origin) {
   }
 }
 
-function boot() {
-  if (!tg) {
-    setStatus('❌ Telegram.WebApp не найден', false);
-    return;
-  }
+function buildTabs() {
+  const tabs = ['Все клиенты'].concat(state.statuses || []);
+  const box = document.getElementById('tabs');
 
-  tg.ready();
-  tg.expand();
+  box.innerHTML = '';
 
-  const initData = tg.initData || '';
+  tabs.forEach(name => {
+    const btn = document.createElement('button');
 
-  document.getElementById('details').textContent =
-    'initData length: ' + initData.length;
+    btn.className =
+      'tab' +
+      (name === state.activeTab ? ' active' : '');
 
-  if (!initData) {
-    setStatus('❌ Telegram не передал initData', false);
-    return;
-  }
+    btn.textContent = name;
 
-  currentRequestId =
-    'REQ-' +
-    Date.now() +
-    '-' +
-    Math.random().toString(16).slice(2);
+    btn.onclick = () => {
+      state.activeTab = name;
+      buildTabs();
+      renderClients();
+    };
 
-  document.getElementById('requestId').value =
-    currentRequestId;
-
-  document.getElementById('initData').value =
-    initData;
-
-  setStatus('Telegram initData получен. Отправляю в Apps Script…');
-
-  document.getElementById('crmBridgeForm').submit();
+    box.appendChild(btn);
+  });
 }
 
-window.addEventListener('message', function(event) {
-  if (!isTrustedGoogleOrigin(event.origin)) {
-    return;
-  }
+function renderClients() {
+  const search =
+    document.getElementById('searchInput')
+      .value
+      .trim()
+      .toLowerCase();
 
-  const message = event.data || {};
+  let clients = state.clients.slice();
 
-  if (
-    message.type !== 'CRM_API_RESPONSE' ||
-    message.requestId !== currentRequestId
-  ) {
-    return;
-  }
-
-  if (message.ok) {
-    setStatus(
-      '✅ Авторизация подтверждена: ' +
-      (message.result?.user?.role || 'роль не определена'),
-      true
+  if (state.activeTab !== 'Все клиенты') {
+    clients = clients.filter(client =>
+      String(client.status || '').toLowerCase() ===
+      state.activeTab.toLowerCase()
     );
-
-    setResult(message.result);
-  } else {
-    setStatus('❌ Apps Script отклонил запрос', false);
-    setResult(message.error || 'Неизвестная ошибка');
   }
-});
 
-document.addEventListener('DOMContentLoaded', boot);
+  if (search) {
+    clients = clients.filter(client => {
+      const haystack = [
+        client.name,
+        client.phone,
+        client.caseNumber,
+        client.judge,
+        client.defendant,
+        client.comment,
+        client.status
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(search);
+    });
+  }
+
+  document.getElementById('summary').textContent =
+    'Клиентов: ' + clients.length;
+
+  const container = document.getElementById('clientList');
+
+  if (!clients.length) {
+    container.innerHTML =
+      '<div class="empty">Ничего не найдено</div>';
+    return;
+  }
+
+  container.innerHTML =
+    clients.map(clientCardHtml).join('');
+}
+
+function clientCardHtml(client) {
+  const event = client.nextDate
+    ? '<div class="client-line">📅 <strong>' +
+      esc(client.nextDate) +
+      (client.nextTime ? ' · ' + esc(client.nextTime) : '') +
+      '</strong></div>'
+    : '';
+
+  const comment = client.comment
+    ? '<div class="client-line comment">💬 ' +
+      esc(client.comment) +
+      '</div>'
+    : '';
+
+  return (
+    '<div class="client" onclick="openClient(\'' +
+    escAttr(client.id) +
+    '\')">' +
+
+      '<div class="client-head">' +
+        '<div class="client-name">' +
+          esc(client.name) +
+        '</div>' +
+
+        '<div class="status">' +
+          esc(client.status || '—') +
+        '</div>' +
+      '</div>' +
+
+      '<div class="client-line">📞 ' +
+        esc(client.phone || '—') +
+      '</div>' +
+
+      event +
+      comment +
+
+    '</div>'
+  );
+}
+
+function openClient(clientId) {
+  showLoader();
+
+  apiCall('apiGetClient', [clientId])
+    .then(data => {
+      state.currentClient = data.client;
+      renderClientDetail(data);
+
+      hideLoader();
+      document
+        .getElementById('clientOverlay')
+        .classList
+        .remove('hidden');
+    })
+    .catch(error => {
+      hideLoader();
+      alert(error.message || String(error));
+    });
+}
+
+function closeClient() {
+  document
+    .getElementById('clientOverlay')
+    .classList
+    .add('hidden');
+
+  state.currentClient = null;
+}
+
+function renderClientDetail(data) {
+  const client = data.client;
+
+  document.getElementById('clientTitle').textContent =
+    client.name || 'Клиент';
+
+  let html =
+    '<div class="section">' +
+      detail('Телефон',
+        client.phone
+          ? '<a href="tel:' + escAttr(client.phone) + '">' +
+            esc(client.phone) +
+            '</a>'
+          : '—'
+      ) +
+      detail('Статус', esc(client.status || '—')) +
+      detail('Получил', esc(client.receivedDate || '—')) +
+      detail('Доверенность', client.powerOfAttorney ? 'Да' : 'Нет') +
+      detail('Ответчик', esc(client.defendant || '—')) +
+      detail('Отправил в суд', esc(client.sentToCourtDate || '—')) +
+      detail('Судья', esc(client.judge || '—')) +
+      detail('Номер дела', esc(client.caseNumber || '—')) +
+      detail('Следующая дата',
+        esc([client.nextDate, client.nextTime].filter(Boolean).join(' · ') || '—')
+      ) +
+      detail('Комментарий', esc(client.comment || '—')) +
+      detail('Эксперт', esc(client.expert || '—')) +
+      detail('Общая сумма выплаты', money(client.totalPayment)) +
+      detail('Остаток',
+        money(client.balance) +
+        (client.totalPayment > 0
+          ? ' (' + client.balancePercent + '%)'
+          : '')
+      ) +
+      detail('Последнее изменение', esc(client.timestamp || '—')) +
+    '</div>';
+
+  if (client.scans || client.caseCard) {
+    html +=
+      '<div class="section">' +
+      '<div class="section-title">Ссылки</div>';
+
+    if (client.scans) {
+      html +=
+        '<a class="link-btn" href="' +
+        escAttr(client.scans) +
+        '" target="_blank">📂 Открыть сканы</a>';
+    }
+
+    if (client.caseCard) {
+      html +=
+        '<a class="link-btn" href="' +
+        escAttr(client.caseCard) +
+        '" target="_blank">⚖️ Открыть карточку дела</a>';
+    }
+
+    html += '</div>';
+  }
+
+  if ((data.comments || []).length) {
+    html +=
+      '<div class="section">' +
+      '<div class="section-title">💬 История комментариев</div>' +
+      data.comments.map(item =>
+        '<div class="detail-row">' +
+          '<div class="detail-label">' +
+            esc(item.timestamp || '') +
+          '</div>' +
+          '<div class="detail-value">' +
+            esc(item.text || '') +
+          '</div>' +
+        '</div>'
+      ).join('') +
+      '</div>';
+  }
+
+  if ((data.history || []).length) {
+    html +=
+      '<div class="section">' +
+      '<div class="section-title">🕘 История изменений</div>' +
+      data.history.slice(0, 30).map(item =>
+        '<div class="detail-row">' +
+          '<div class="detail-label">' +
+            esc(item.timestamp || '') +
+          '</div>' +
+          '<div class="detail-value"><strong>' +
+            esc(item.field || '') +
+          '</strong><br>' +
+            esc(item.oldValue || '—') +
+            ' → ' +
+            esc(item.newValue || '—') +
+          '</div>' +
+        '</div>'
+      ).join('') +
+      '</div>';
+  }
+
+  document.getElementById('clientContent').innerHTML = html;
+}
+
+function detail(label, value) {
+  return (
+    '<div class="detail-row">' +
+      '<div class="detail-label">' + esc(label) + '</div>' +
+      '<div class="detail-value">' + value + '</div>' +
+    '</div>'
+  );
+}
+
+function money(value) {
+  const num = Number(value || 0);
+
+  return new Intl.NumberFormat(
+    'ru-RU',
+    { maximumFractionDigits: 2 }
+  ).format(num) + ' ₽';
+}
+
+function showLoader() {
+  document.getElementById('loader').classList.remove('hidden');
+}
+
+function hideLoader() {
+  document.getElementById('loader').classList.add('hidden');
+}
+
+function fatal(message) {
+  hideLoader();
+
+  document.getElementById('app').classList.add('hidden');
+
+  const box = document.getElementById('errorBox');
+  box.textContent = 'CRM недоступна: ' + message;
+  box.classList.remove('hidden');
+}
+
+function esc(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function escAttr(value) {
+  return esc(value);
+}
 </script>
 
 </body>
