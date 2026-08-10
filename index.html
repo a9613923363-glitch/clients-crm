@@ -3,46 +3,201 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>Clients CRM Test</title>
+  <title>Clients CRM — Auth Test</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 18px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--tg-theme-bg-color, #f4f5f7);
+      color: var(--tg-theme-text-color, #111);
+    }
+
+    .card {
+      max-width: 680px;
+      margin: 0 auto 14px;
+      padding: 16px;
+      border-radius: 14px;
+      background: var(--tg-theme-secondary-bg-color, #fff);
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    .good {
+      color: #16803a;
+      font-weight: 700;
+    }
+
+    .bad {
+      color: #b42318;
+      font-weight: 700;
+    }
+
+    .muted {
+      color: var(--tg-theme-hint-color, #666);
+      font-size: 13px;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: rgba(127,127,127,.08);
+      padding: 12px;
+      border-radius: 10px;
+    }
+
+    iframe {
+      display: none;
+    }
+  </style>
 </head>
 
 <body>
-  <h2>Telegram Mini App — тест</h2>
 
-  <p id="status">Проверяем Telegram...</p>
+<div class="card">
+  <h2>CRM — проверка авторизации</h2>
+  <div id="status">Запускаю проверку…</div>
+  <div class="muted" id="details"></div>
+</div>
 
-  <pre id="result"></pre>
+<div class="card">
+  <strong>Ответ сервера</strong>
+  <pre id="result">—</pre>
+</div>
 
-  <script>
-    const tg = window.Telegram?.WebApp;
+<iframe
+  id="crmBridge"
+  src="https://script.google.com/macros/s/AKfycbyRI0tfKU3q3J77UJdhfkXFphr5kmUNC4wy5PknQZWqHYAIYYHSuiQMlpU6QrJGiDQg/exec?bridge=1"
+></iframe>
 
-    if (!tg) {
-      document.getElementById('status').innerText =
-        '❌ Telegram.WebApp не найден';
-    } else {
-      tg.ready();
-      tg.expand();
+<script>
+const tg = window.Telegram?.WebApp;
 
-      const data = {
-        telegramWebApp: true,
-        version: tg.version,
-        platform: tg.platform,
-        initDataExists: Boolean(tg.initData),
-        initDataLength: tg.initData?.length || 0,
-        user: tg.initDataUnsafe?.user || null
-      };
+const BACKEND_ORIGIN =
+  'https://script.google.com';
 
-      document.getElementById('status').innerText =
-        tg.initData
-          ? '✅ Telegram передал initData'
-          : '❌ initData отсутствует';
+const state = {
+  bridgeReady: false,
+  requestId: null
+};
 
-      document.getElementById('result').innerText =
-        JSON.stringify(data, null, 2);
+function setStatus(text, ok = null) {
+  const el = document.getElementById('status');
+
+  if (ok === true) {
+    el.innerHTML = '<span class="good">' + escapeHtml(text) + '</span>';
+  } else if (ok === false) {
+    el.innerHTML = '<span class="bad">' + escapeHtml(text) + '</span>';
+  } else {
+    el.textContent = text;
+  }
+}
+
+function setResult(value) {
+  document.getElementById('result').textContent =
+    typeof value === 'string'
+      ? value
+      : JSON.stringify(value, null, 2);
+}
+
+function boot() {
+  if (!tg) {
+    setStatus('❌ Telegram.WebApp не найден', false);
+    return;
+  }
+
+  tg.ready();
+  tg.expand();
+
+  const initData = tg.initData || '';
+
+  document.getElementById('details').textContent =
+    'initData length: ' + initData.length;
+
+  if (!initData) {
+    setStatus('❌ Telegram не передал initData', false);
+    return;
+  }
+
+  setStatus('Telegram initData получен. Жду Apps Script bridge…');
+}
+
+window.addEventListener('message', function(event) {
+  if (event.origin !== BACKEND_ORIGIN) {
+    return;
+  }
+
+  const message = event.data || {};
+
+  if (message.type === 'CRM_BRIDGE_READY') {
+    state.bridgeReady = true;
+
+    const initData = tg?.initData || '';
+
+    if (!initData) {
+      setStatus('❌ initData отсутствует', false);
+      return;
     }
-  </script>
+
+    state.requestId =
+      'REQ-' +
+      Date.now() +
+      '-' +
+      Math.random().toString(16).slice(2);
+
+    setStatus('Bridge подключён. Проверяю подпись Telegram…');
+
+    const iframe =
+      document.getElementById('crmBridge');
+
+    iframe.contentWindow.postMessage(
+      {
+        type: 'CRM_API_REQUEST',
+        requestId: state.requestId,
+        method: 'apiAuthCheck',
+        args: [initData]
+      },
+      BACKEND_ORIGIN
+    );
+
+    return;
+  }
+
+  if (
+    message.type === 'CRM_API_RESPONSE' &&
+    message.requestId === state.requestId
+  ) {
+    if (message.ok) {
+      setStatus(
+        '✅ Авторизация подтверждена: ' +
+        (message.result?.user?.role || 'роль не определена'),
+        true
+      );
+
+      setResult(message.result);
+    } else {
+      setStatus('❌ Apps Script отклонил авторизацию', false);
+      setResult(message.error || 'Неизвестная ошибка');
+    }
+  }
+});
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+document.addEventListener('DOMContentLoaded', boot);
+</script>
+
 </body>
 </html>
