@@ -31,14 +31,16 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     }
 
-    button, input { font: inherit; }
+    button, input, select, textarea { font: inherit; }
+
+    button { cursor: pointer; }
 
     .hidden { display: none !important; }
 
     .app {
       max-width: 900px;
       margin: 0 auto;
-      padding-bottom: 30px;
+      padding-bottom: 90px;
     }
 
     .topbar {
@@ -57,10 +59,7 @@
       gap: 10px;
     }
 
-    h1 {
-      margin: 0;
-      font-size: 21px;
-    }
+    h1 { margin: 0; font-size: 21px; }
 
     .role {
       padding: 5px 9px;
@@ -71,9 +70,7 @@
       white-space: nowrap;
     }
 
-    .search {
-      margin-top: 10px;
-    }
+    .search { margin-top: 10px; }
 
     .search input {
       width: 100%;
@@ -102,7 +99,6 @@
       border-radius: 999px;
       background: var(--card);
       color: var(--text);
-      cursor: pointer;
     }
 
     .tab.active {
@@ -117,9 +113,7 @@
       font-size: 13px;
     }
 
-    .list {
-      padding: 0 10px;
-    }
+    .list { padding: 0 10px; }
 
     .client {
       margin-bottom: 9px;
@@ -127,7 +121,6 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--card);
-      cursor: pointer;
     }
 
     .client-head {
@@ -159,13 +152,9 @@
       line-height: 1.35;
     }
 
-    .client-line strong {
-      color: var(--text);
-    }
+    .client-line strong { color: var(--text); }
 
-    .comment {
-      white-space: pre-wrap;
-    }
+    .comment { white-space: pre-wrap; }
 
     .empty {
       padding: 40px 20px;
@@ -225,7 +214,6 @@
       background: transparent;
       color: var(--link);
       padding: 6px;
-      cursor: pointer;
     }
 
     .overlay-title {
@@ -239,7 +227,7 @@
     .content {
       max-width: 900px;
       margin: 0 auto;
-      padding: 12px 12px 50px;
+      padding: 12px 12px 70px;
     }
 
     .section {
@@ -260,9 +248,7 @@
       border-bottom: 1px solid var(--border);
     }
 
-    .detail-row:last-child {
-      border-bottom: 0;
-    }
+    .detail-row:last-child { border-bottom: 0; }
 
     .detail-label {
       color: var(--hint);
@@ -275,9 +261,7 @@
       word-break: break-word;
     }
 
-    .detail-value a {
-      color: var(--link);
-    }
+    .detail-value a { color: var(--link); }
 
     .link-btn {
       display: block;
@@ -290,9 +274,85 @@
       text-decoration: none;
     }
 
-    iframe {
-      display: none;
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
     }
+
+    .btn {
+      padding: 10px 13px;
+      border: 0;
+      border-radius: 11px;
+      background: var(--button);
+      color: var(--button-text);
+      font-weight: 600;
+    }
+
+    .btn.secondary {
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn.danger {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    .btn.full { width: 100%; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 11px;
+    }
+
+    @media (min-width: 650px) {
+      .grid.two { grid-template-columns: 1fr 1fr; }
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--hint);
+      font-size: 12px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 11px;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+    }
+
+    textarea {
+      min-height: 88px;
+      resize: vertical;
+    }
+
+    input[type="checkbox"] {
+      width: auto;
+      transform: scale(1.2);
+    }
+
+    .checkbox-line {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 42px;
+    }
+
+    .checkbox-line label {
+      margin: 0;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    iframe { display: none; }
   </style>
 </head>
 
@@ -313,11 +373,7 @@
     </div>
 
     <div class="search">
-      <input
-        id="searchInput"
-        type="search"
-        placeholder="Поиск по ФИО, телефону, делу…"
-      >
+      <input id="searchInput" type="search" placeholder="Поиск по ФИО, телефону, делу…">
     </div>
   </div>
 
@@ -336,17 +392,131 @@
   <div id="clientContent" class="content"></div>
 </div>
 
-<iframe
-  name="crmBridgeFrame"
-  id="crmBridgeFrame"
-></iframe>
+<div id="editOverlay" class="overlay hidden">
+  <div class="overlay-header">
+    <button class="back" onclick="closeEdit()">← Назад</button>
+    <div class="overlay-title">Редактирование</div>
+  </div>
 
-<form
-  id="crmBridgeForm"
-  method="POST"
-  action="https://script.google.com/macros/s/AKfycbyRI0tfKU3q3J77UJdhfkXFphr5kmUNC4wy5PknQZWqHYAIYYHSuiQMlpU6QrJGiDQg/exec?bridge=1"
-  target="crmBridgeFrame"
->
+  <div class="content">
+    <form id="editForm">
+
+      <div class="section">
+        <div class="section-title">Основные данные</div>
+
+        <div class="grid two">
+          <div>
+            <label>ФИО *</label>
+            <input id="eName" required>
+          </div>
+
+          <div>
+            <label>Телефон *</label>
+            <input id="ePhone" type="tel" required>
+          </div>
+
+          <div>
+            <label>Получил</label>
+            <input id="eReceivedDate" type="date">
+          </div>
+
+          <div class="checkbox-line">
+            <input id="ePower" type="checkbox">
+            <label for="ePower">Доверенность получена</label>
+          </div>
+
+          <div>
+            <label>Ответчик</label>
+            <input id="eDefendant">
+          </div>
+
+          <div>
+            <label>Статус</label>
+            <select id="eStatus"></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Суд и событие</div>
+
+        <div class="grid two">
+          <div>
+            <label>Отправил в суд</label>
+            <input id="eSentDate" type="date">
+          </div>
+
+          <div>
+            <label>Судья</label>
+            <input id="eJudge">
+          </div>
+
+          <div>
+            <label>Номер дела</label>
+            <input id="eCaseNumber">
+          </div>
+
+          <div>
+            <label>Следующая дата</label>
+            <input id="eNextDate" type="date">
+          </div>
+
+          <div>
+            <label>Время</label>
+            <input id="eNextTime" type="time">
+          </div>
+
+          <div>
+            <label>Эксперт</label>
+            <input id="eExpert">
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Ссылки и выплата</div>
+
+        <div class="grid">
+          <div>
+            <label>Сканы</label>
+            <input id="eScans" type="url" placeholder="https://...">
+          </div>
+
+          <div>
+            <label>Карточка дела</label>
+            <input id="eCaseCard" type="url" placeholder="https://...">
+          </div>
+        </div>
+
+        <div class="grid two" style="margin-top:11px">
+          <div>
+            <label>Общая сумма выплаты</label>
+            <input id="eTotal" type="number" min="0" step="0.01">
+          </div>
+
+          <div>
+            <label>Остаток</label>
+            <input id="eBalance" type="number" min="0" step="0.01">
+          </div>
+
+          <div>
+            <label>Остаток указан как</label>
+            <select id="eBalanceType">
+              <option value="amount">Сумма ₽</option>
+              <option value="percent">Процент от общей выплаты</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn full" type="submit">💾 Сохранить изменения</button>
+    </form>
+  </div>
+</div>
+
+<iframe name="crmBridgeFrame" id="crmBridgeFrame"></iframe>
+
+<form id="crmBridgeForm" method="POST" action="https://script.google.com/macros/s/AKfycbyRI0tfKU3q3J77UJdhfkXFphr5kmUNC4wy5PknQZWqHYAIYYHSuiQMlpU6QrJGiDQg/exec?bridge=1" target="crmBridgeFrame">
   <input type="hidden" name="bridge" value="1">
   <input type="hidden" name="requestId" id="bridgeRequestId">
   <input type="hidden" name="method" id="bridgeMethod">
@@ -365,6 +535,7 @@ const state = {
   clients: [],
   activeTab: 'Все клиенты',
   currentClient: null,
+  currentClientData: null,
   pending: new Map()
 };
 
@@ -386,9 +557,11 @@ function boot() {
     return;
   }
 
-  document
-    .getElementById('searchInput')
+  document.getElementById('searchInput')
     .addEventListener('input', renderClients);
+
+  document.getElementById('editForm')
+    .addEventListener('submit', saveEdit);
 
   apiCall('apiInit', [])
     .then(data => {
@@ -398,9 +571,7 @@ function boot() {
       state.clients = data.clients || [];
 
       document.getElementById('roleBadge').textContent =
-        state.role === 'ADMIN'
-          ? 'Администратор'
-          : 'Просмотр';
+        state.role === 'ADMIN' ? 'Администратор' : 'Просмотр';
 
       buildTabs();
       renderClients();
@@ -408,18 +579,13 @@ function boot() {
       hideLoader();
       document.getElementById('app').classList.remove('hidden');
     })
-    .catch(error => {
-      fatal(error.message || String(error));
-    });
+    .catch(error => fatal(error.message || String(error)));
 }
 
 function apiCall(method, args) {
   return new Promise((resolve, reject) => {
     const requestId =
-      'REQ-' +
-      Date.now() +
-      '-' +
-      Math.random().toString(16).slice(2);
+      'REQ-' + Date.now() + '-' + Math.random().toString(16).slice(2);
 
     state.pending.set(requestId, { resolve, reject });
 
@@ -440,21 +606,15 @@ function apiCall(method, args) {
 }
 
 window.addEventListener('message', function(event) {
-  if (!isTrustedGoogleOrigin(event.origin)) {
-    return;
-  }
+  if (!isTrustedGoogleOrigin(event.origin)) return;
 
   const message = event.data || {};
 
-  if (message.type !== 'CRM_API_RESPONSE') {
-    return;
-  }
+  if (message.type !== 'CRM_API_RESPONSE') return;
 
   const pending = state.pending.get(message.requestId);
 
-  if (!pending) {
-    return;
-  }
+  if (!pending) return;
 
   state.pending.delete(message.requestId);
 
@@ -490,10 +650,7 @@ function buildTabs() {
   tabs.forEach(name => {
     const btn = document.createElement('button');
 
-    btn.className =
-      'tab' +
-      (name === state.activeTab ? ' active' : '');
-
+    btn.className = 'tab' + (name === state.activeTab ? ' active' : '');
     btn.textContent = name;
 
     btn.onclick = () => {
@@ -507,11 +664,8 @@ function buildTabs() {
 }
 
 function renderClients() {
-  const search =
-    document.getElementById('searchInput')
-      .value
-      .trim()
-      .toLowerCase();
+  const search = document.getElementById('searchInput')
+    .value.trim().toLowerCase();
 
   let clients = state.clients.slice();
 
@@ -532,9 +686,7 @@ function renderClients() {
         client.defendant,
         client.comment,
         client.status
-      ]
-        .join(' ')
-        .toLowerCase();
+      ].join(' ').toLowerCase();
 
       return haystack.includes(search);
     });
@@ -546,13 +698,11 @@ function renderClients() {
   const container = document.getElementById('clientList');
 
   if (!clients.length) {
-    container.innerHTML =
-      '<div class="empty">Ничего не найдено</div>';
+    container.innerHTML = '<div class="empty">Ничего не найдено</div>';
     return;
   }
 
-  container.innerHTML =
-    clients.map(clientCardHtml).join('');
+  container.innerHTML = clients.map(clientCardHtml).join('');
 }
 
 function clientCardHtml(client) {
@@ -575,22 +725,13 @@ function clientCardHtml(client) {
     '\')">' +
 
       '<div class="client-head">' +
-        '<div class="client-name">' +
-          esc(client.name) +
-        '</div>' +
-
-        '<div class="status">' +
-          esc(client.status || '—') +
-        '</div>' +
+        '<div class="client-name">' + esc(client.name) + '</div>' +
+        '<div class="status">' + esc(client.status || '—') + '</div>' +
       '</div>' +
 
-      '<div class="client-line">📞 ' +
-        esc(client.phone || '—') +
-      '</div>' +
-
+      '<div class="client-line">📞 ' + esc(client.phone || '—') + '</div>' +
       event +
       comment +
-
     '</div>'
   );
 }
@@ -601,13 +742,14 @@ function openClient(clientId) {
   apiCall('apiGetClient', [clientId])
     .then(data => {
       state.currentClient = data.client;
+      state.currentClientData = data;
+
       renderClientDetail(data);
 
       hideLoader();
-      document
-        .getElementById('clientOverlay')
-        .classList
-        .remove('hidden');
+
+      document.getElementById('clientOverlay')
+        .classList.remove('hidden');
     })
     .catch(error => {
       hideLoader();
@@ -616,16 +758,14 @@ function openClient(clientId) {
 }
 
 function closeClient() {
-  document
-    .getElementById('clientOverlay')
-    .classList
-    .add('hidden');
-
+  document.getElementById('clientOverlay').classList.add('hidden');
   state.currentClient = null;
+  state.currentClientData = null;
 }
 
 function renderClientDetail(data) {
   const client = data.client;
+  const admin = data.role === 'ADMIN';
 
   document.getElementById('clientTitle').textContent =
     client.name || 'Клиент';
@@ -683,45 +823,226 @@ function renderClientDetail(data) {
     html += '</div>';
   }
 
-  if ((data.comments || []).length) {
+  if (admin) {
     html +=
       '<div class="section">' +
-      '<div class="section-title">💬 История комментариев</div>' +
-      data.comments.map(item =>
-        '<div class="detail-row">' +
-          '<div class="detail-label">' +
-            esc(item.timestamp || '') +
-          '</div>' +
-          '<div class="detail-value">' +
-            esc(item.text || '') +
-          '</div>' +
-        '</div>'
-      ).join('') +
+        '<div class="section-title">Действия</div>' +
+        '<div class="actions">' +
+          '<button class="btn" onclick="openEdit()">✏️ Редактировать</button>' +
+          (
+            client.archive
+              ? '<button class="btn secondary" onclick="restoreClient()">↩️ Вернуть из архива</button>'
+              : '<button class="btn danger" onclick="archiveClient()">📁 В архив</button>'
+          ) +
+        '</div>' +
+      '</div>' +
+
+      '<div class="section">' +
+        '<div class="section-title">💬 Новый комментарий</div>' +
+        '<textarea id="newComment" placeholder="Введите комментарий…"></textarea>' +
+        '<button class="btn full" style="margin-top:8px" onclick="addComment()">Добавить комментарий</button>' +
       '</div>';
   }
 
-  if ((data.history || []).length) {
-    html +=
-      '<div class="section">' +
+  html +=
+    '<div class="section">' +
+      '<div class="section-title">💬 История комментариев</div>' +
+      (
+        (data.comments || []).length
+          ? data.comments.map(item =>
+              '<div class="detail-row">' +
+                '<div class="detail-label">' +
+                  esc(item.timestamp || '') +
+                  (item.userName ? ' · ' + esc(item.userName) : '') +
+                '</div>' +
+                '<div class="detail-value">' +
+                  esc(item.text || '') +
+                '</div>' +
+              '</div>'
+            ).join('')
+          : '<div class="empty">Комментариев пока нет</div>'
+      ) +
+    '</div>';
+
+  html +=
+    '<div class="section">' +
       '<div class="section-title">🕘 История изменений</div>' +
-      data.history.slice(0, 30).map(item =>
-        '<div class="detail-row">' +
-          '<div class="detail-label">' +
-            esc(item.timestamp || '') +
-          '</div>' +
-          '<div class="detail-value"><strong>' +
-            esc(item.field || '') +
-          '</strong><br>' +
-            esc(item.oldValue || '—') +
-            ' → ' +
-            esc(item.newValue || '—') +
-          '</div>' +
-        '</div>'
-      ).join('') +
-      '</div>';
-  }
+      (
+        (data.history || []).length
+          ? data.history.slice(0, 50).map(item =>
+              '<div class="detail-row">' +
+                '<div class="detail-label">' +
+                  esc(item.timestamp || '') +
+                  (item.userName ? ' · ' + esc(item.userName) : '') +
+                '</div>' +
+                '<div class="detail-value"><strong>' +
+                  esc(item.field || '') +
+                '</strong><br>' +
+                  esc(item.oldValue || '—') +
+                  ' → ' +
+                  esc(item.newValue || '—') +
+                '</div>' +
+              '</div>'
+            ).join('')
+          : '<div class="empty">История пока пуста</div>'
+      ) +
+    '</div>';
 
   document.getElementById('clientContent').innerHTML = html;
+}
+
+function openEdit() {
+  if (state.role !== 'ADMIN' || !state.currentClient) return;
+
+  const c = state.currentClient;
+
+  document.getElementById('eName').value = c.name || '';
+  document.getElementById('ePhone').value = c.phone || '';
+  document.getElementById('eReceivedDate').value = dateToInput(c.receivedDate);
+  document.getElementById('ePower').checked = Boolean(c.powerOfAttorney);
+  document.getElementById('eDefendant').value = c.defendant || '';
+
+  document.getElementById('eStatus').innerHTML =
+    state.statuses.map(status =>
+      '<option value="' + escAttr(status) + '">' + esc(status) + '</option>'
+    ).join('');
+
+  document.getElementById('eStatus').value = c.status || 'Подготовка';
+  document.getElementById('eSentDate').value = dateToInput(c.sentToCourtDate);
+  document.getElementById('eJudge').value = c.judge || '';
+  document.getElementById('eCaseNumber').value = c.caseNumber || '';
+  document.getElementById('eNextDate').value = dateToInput(c.nextDate);
+  document.getElementById('eNextTime').value = c.nextTime || '';
+  document.getElementById('eExpert').value = c.expert || '';
+  document.getElementById('eScans').value = c.scans || '';
+  document.getElementById('eCaseCard').value = c.caseCard || '';
+  document.getElementById('eTotal').value =
+    Number(c.totalPayment || 0) || '';
+  document.getElementById('eBalance').value =
+    Number(c.balance || 0) || '';
+  document.getElementById('eBalanceType').value = 'amount';
+
+  document.getElementById('editOverlay').classList.remove('hidden');
+}
+
+function closeEdit() {
+  document.getElementById('editOverlay').classList.add('hidden');
+}
+
+function saveEdit(event) {
+  event.preventDefault();
+
+  if (state.role !== 'ADMIN' || !state.currentClient) return;
+
+  const payload = {
+    name: val('eName'),
+    phone: val('ePhone'),
+    receivedDate: val('eReceivedDate'),
+    powerOfAttorney: document.getElementById('ePower').checked,
+    defendant: val('eDefendant'),
+    status: val('eStatus'),
+    sentToCourtDate: val('eSentDate'),
+    judge: val('eJudge'),
+    caseNumber: val('eCaseNumber'),
+    nextDate: val('eNextDate'),
+    nextTime: val('eNextTime'),
+    expert: val('eExpert'),
+    scans: val('eScans'),
+    caseCard: val('eCaseCard'),
+    totalPayment: val('eTotal'),
+    balance: val('eBalance'),
+    balanceType: val('eBalanceType')
+  };
+
+  showLoader();
+
+  apiCall('apiUpdateClient', [state.currentClient.id, payload])
+    .then(data => {
+      state.currentClient = data.client;
+      state.currentClientData = data;
+
+      closeEdit();
+      renderClientDetail(data);
+
+      return refreshClients();
+    })
+    .then(() => hideLoader())
+    .catch(error => {
+      hideLoader();
+      alert(error.message || String(error));
+    });
+}
+
+function addComment() {
+  if (state.role !== 'ADMIN' || !state.currentClient) return;
+
+  const input = document.getElementById('newComment');
+  const text = input ? input.value.trim() : '';
+
+  if (!text) return;
+
+  showLoader();
+
+  apiCall('apiAddComment', [state.currentClient.id, text])
+    .then(data => {
+      state.currentClient = data.client;
+      state.currentClientData = data;
+
+      renderClientDetail(data);
+
+      return refreshClients();
+    })
+    .then(() => hideLoader())
+    .catch(error => {
+      hideLoader();
+      alert(error.message || String(error));
+    });
+}
+
+function archiveClient() {
+  if (state.role !== 'ADMIN' || !state.currentClient) return;
+
+  if (!confirm('Переместить клиента в архив?')) return;
+
+  showLoader();
+
+  apiCall('apiArchiveClient', [state.currentClient.id])
+    .then(() => {
+      closeClient();
+      return refreshClients();
+    })
+    .then(() => hideLoader())
+    .catch(error => {
+      hideLoader();
+      alert(error.message || String(error));
+    });
+}
+
+function restoreClient() {
+  if (state.role !== 'ADMIN' || !state.currentClient) return;
+
+  showLoader();
+
+  apiCall('apiRestoreClient', [state.currentClient.id])
+    .then(data => {
+      state.currentClient = data.client;
+      state.currentClientData = data;
+      renderClientDetail(data);
+      return refreshClients();
+    })
+    .then(() => hideLoader())
+    .catch(error => {
+      hideLoader();
+      alert(error.message || String(error));
+    });
+}
+
+function refreshClients() {
+  return apiCall('apiGetClients', [false])
+    .then(clients => {
+      state.clients = clients || [];
+      renderClients();
+    });
 }
 
 function detail(label, value) {
@@ -731,6 +1052,20 @@ function detail(label, value) {
       '<div class="detail-value">' + value + '</div>' +
     '</div>'
   );
+}
+
+function dateToInput(date) {
+  if (!date) return '';
+
+  const match = String(date).match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+
+  if (!match) return '';
+
+  return match[3] + '-' + match[2] + '-' + match[1];
+}
+
+function val(id) {
+  return document.getElementById(id).value.trim();
 }
 
 function money(value) {
@@ -752,7 +1087,6 @@ function hideLoader() {
 
 function fatal(message) {
   hideLoader();
-
   document.getElementById('app').classList.add('hidden');
 
   const box = document.getElementById('errorBox');
