@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Clients CRM v36</title>
+  <title>Clients CRM v36.1</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -1597,13 +1597,23 @@ function openQuickAction(type) {
   html +=
     '<div class="quick-panel-actions">' +
       '<button class="btn secondary" type="button" onclick="closeQuickAction()">Отмена</button>' +
-      '<button class="btn" type="button" onclick="saveQuickAction(\\'' +
-        escAttr(type) +
-      '\\')">Сохранить</button>' +
+      '<button class="btn" type="button" id="quickSaveButton">Сохранить</button>' +
     '</div>';
 
   panel.innerHTML = html;
   panel.classList.remove('hidden');
+
+  document
+    .getElementById('quickSaveButton')
+    .addEventListener(
+      'click',
+      function() {
+        saveQuickAction(type);
+      }
+    );
+
+  return;
+
 }
 
 
