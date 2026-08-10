@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Clients CRM VIEWER Security Test</title>
+  <title>Clients CRM v33</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -160,17 +160,6 @@
       padding: 40px 20px;
       text-align: center;
       color: var(--hint);
-    }
-
-    .viewer-test {
-      margin-top: 10px;
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px dashed var(--border);
-      border-radius: 11px;
-      background: var(--card);
-      color: var(--text);
-      font-size: 13px;
     }
 
     .fab {
@@ -415,14 +404,6 @@
     <div class="search">
       <input id="searchInput" type="search" placeholder="Поиск по ФИО, телефону, делу…">
     </div>
-
-    <button
-      id="viewerProtectionTest"
-      class="viewer-test hidden"
-      type="button"
-    >
-      🔒 Проверить серверную защиту VIEWER
-    </button>
   </div>
 
   <div id="tabs" class="tabs"></div>
@@ -598,6 +579,7 @@ const state = {
   user: null,
   statuses: [],
   clients: [],
+  archiveClients: [],
   activeTab: 'Все клиенты',
   currentClient: null,
   currentClientData: null,
@@ -632,9 +614,6 @@ function boot() {
   document.getElementById('addButton')
     .addEventListener('click', openCreate);
 
-  document.getElementById('viewerProtectionTest')
-    .addEventListener('click', testViewerProtection);
-
   apiCall('apiInit', [])
     .then(data => {
       state.role = data.user.role;
@@ -647,9 +626,6 @@ function boot() {
 
       if (state.role === 'ADMIN') {
         document.getElementById('addButton')
-          .classList.remove('hidden');
-      } else if (state.role === 'VIEWER') {
-        document.getElementById('viewerProtectionTest')
           .classList.remove('hidden');
       }
 
@@ -723,6 +699,11 @@ function isTrustedGoogleOrigin(origin) {
 
 function buildTabs() {
   const tabs = ['Все клиенты'].concat(state.statuses || []);
+
+  if (state.role === 'ADMIN') {
+    tabs.push('Архив');
+  }
+
   const box = document.getElementById('tabs');
 
   box.innerHTML = '';
@@ -736,7 +717,12 @@ function buildTabs() {
     btn.onclick = () => {
       state.activeTab = name;
       buildTabs();
-      renderClients();
+
+      if (name === 'Архив') {
+        loadArchive();
+      } else {
+        renderClients();
+      }
     };
 
     box.appendChild(btn);
@@ -747,9 +733,14 @@ function renderClients() {
   const search = document.getElementById('searchInput')
     .value.trim().toLowerCase();
 
-  let clients = state.clients.slice();
+  let clients =
+    state.activeTab === 'Архив'
+      ? state.archiveClients.slice()
+      : state.clients.slice();
 
-  if (state.activeTab !== 'Все клиенты') {
+  if (state.activeTab === 'Архив') {
+    clients = clients.filter(client => Boolean(client.archive));
+  } else if (state.activeTab !== 'Все клиенты') {
     clients = clients.filter(client =>
       String(client.status || '').toLowerCase() ===
       state.activeTab.toLowerCase()
@@ -1155,7 +1146,13 @@ function restoreClient() {
     .then(data => {
       state.currentClient = data.client;
       state.currentClientData = data;
-      renderClientDetail(data);
+
+      if (state.activeTab === 'Архив') {
+        closeClient();
+      } else {
+        renderClientDetail(data);
+      }
+
       return refreshClients();
     })
     .then(() => hideLoader())
@@ -1166,51 +1163,22 @@ function restoreClient() {
 }
 
 
-function testViewerProtection() {
-  if (state.role !== 'VIEWER') {
-    alert('Тест предназначен только для VIEWER.');
+function loadArchive() {
+  if (state.role !== 'ADMIN') {
     return;
   }
 
   showLoader();
 
-  apiCall(
-    'apiArchiveClient',
-    ['TEST-NONEXISTENT-CLIENT-ID']
-  )
-    .then(() => {
+  apiCall('apiGetClients', [true])
+    .then(clients => {
+      state.archiveClients = clients || [];
+      renderClients();
       hideLoader();
-
-      alert(
-        '❌ ВНИМАНИЕ: сервер разрешил защищённую операцию VIEWER. ' +
-        'Это ошибка, дальнейшее тестирование остановить.'
-      );
     })
     .catch(error => {
       hideLoader();
-
-      const message =
-        error && error.message
-          ? error.message
-          : String(error);
-
-      const normalized =
-        message.toLowerCase();
-
-      if (
-        normalized.includes('только администратору') ||
-        normalized.includes('недостаточно прав')
-      ) {
-        alert(
-          '✅ Серверная защита работает.\n\n' +
-          message
-        );
-      } else {
-        alert(
-          '⚠️ Получен другой ответ сервера:\n\n' +
-          message
-        );
-      }
+      alert(error.message || String(error));
     });
 }
 
@@ -1219,6 +1187,15 @@ function refreshClients() {
   return apiCall('apiGetClients', [false])
     .then(clients => {
       state.clients = clients || [];
+
+      if (state.activeTab === 'Архив') {
+        return apiCall('apiGetClients', [true])
+          .then(allClients => {
+            state.archiveClients = allClients || [];
+            renderClients();
+          });
+      }
+
       renderClients();
     });
 }
