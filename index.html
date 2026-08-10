@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Clients CRM v33</title>
+  <title>Clients CRM v34</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -80,6 +80,82 @@
       background: var(--card);
       color: var(--text);
       outline: none;
+    }
+
+    .events-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 10px 12px 2px;
+    }
+
+    .event-summary {
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      background: var(--card);
+      color: var(--text);
+      padding: 10px 8px;
+      text-align: center;
+      min-width: 0;
+    }
+
+    .event-summary-title {
+      color: var(--hint);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .event-summary-count {
+      font-size: 21px;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .event-summary.has-events .event-summary-count {
+      color: var(--button);
+    }
+
+    .event-date-group {
+      margin-bottom: 14px;
+    }
+
+    .event-date-title {
+      position: sticky;
+      top: 55px;
+      z-index: 2;
+      margin: 0 0 7px;
+      padding: 6px 8px;
+      border-radius: 9px;
+      background: var(--bg);
+      color: var(--hint);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .event-card {
+      margin-bottom: 8px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      background: var(--card);
+    }
+
+    .event-time {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .event-name {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .event-meta {
+      color: var(--hint);
+      font-size: 13px;
+      line-height: 1.35;
+      white-space: pre-wrap;
     }
 
     .tabs {
@@ -406,6 +482,23 @@
     </div>
   </div>
 
+  <div class="events-strip">
+    <button class="event-summary" id="eventToday" type="button">
+      <div class="event-summary-title">Сегодня</div>
+      <div class="event-summary-count" id="eventTodayCount">0</div>
+    </button>
+
+    <button class="event-summary" id="eventTomorrow" type="button">
+      <div class="event-summary-title">Завтра</div>
+      <div class="event-summary-count" id="eventTomorrowCount">0</div>
+    </button>
+
+    <button class="event-summary" id="eventWeek" type="button">
+      <div class="event-summary-title">7 дней</div>
+      <div class="event-summary-count" id="eventWeekCount">0</div>
+    </button>
+  </div>
+
   <div id="tabs" class="tabs"></div>
   <div id="summary" class="summary"></div>
   <div id="clientList" class="list"></div>
@@ -420,6 +513,15 @@
 >
   +
 </button>
+
+<div id="eventsOverlay" class="overlay hidden">
+  <div class="overlay-header">
+    <button class="back" onclick="closeEvents()">← Назад</button>
+    <div id="eventsTitle" class="overlay-title">Ближайшие события</div>
+  </div>
+
+  <div id="eventsContent" class="content"></div>
+</div>
 
 <div id="clientOverlay" class="overlay hidden">
   <div class="overlay-header">
@@ -614,6 +716,15 @@ function boot() {
   document.getElementById('addButton')
     .addEventListener('click', openCreate);
 
+  document.getElementById('eventToday')
+    .addEventListener('click', () => openEvents('today'));
+
+  document.getElementById('eventTomorrow')
+    .addEventListener('click', () => openEvents('tomorrow'));
+
+  document.getElementById('eventWeek')
+    .addEventListener('click', () => openEvents('week'));
+
   apiCall('apiInit', [])
     .then(data => {
       state.role = data.user.role;
@@ -631,6 +742,7 @@ function boot() {
 
       buildTabs();
       renderClients();
+      renderEventCounters();
 
       hideLoader();
       document.getElementById('app').classList.remove('hidden');
@@ -696,6 +808,314 @@ function isTrustedGoogleOrigin(origin) {
     return false;
   }
 }
+
+
+function parseRuDate(value) {
+  const match =
+    String(value || '')
+      .trim()
+      .match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+
+  if (!match) return null;
+
+  return new Date(
+    Number(match[3]),
+    Number(match[2]) - 1,
+    Number(match[1]),
+    12,
+    0,
+    0,
+    0
+  );
+}
+
+function startOfLocalDay(date) {
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    12,
+    0,
+    0,
+    0
+  );
+}
+
+function addDays(date, days) {
+  const result = new Date(date.getTime());
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function dateKey(date) {
+  return (
+    String(date.getDate()).padStart(2, '0') +
+    '.' +
+    String(date.getMonth() + 1).padStart(2, '0') +
+    '.' +
+    date.getFullYear()
+  );
+}
+
+function clientsForDate(date) {
+  const key = dateKey(date);
+
+  return state.clients
+    .filter(client =>
+      !client.archive &&
+      client.nextDate === key
+    )
+    .sort(compareEvents);
+}
+
+function clientsForPeriod(fromDate, toDate) {
+  const from = startOfLocalDay(fromDate).getTime();
+  const to = startOfLocalDay(toDate).getTime();
+
+  return state.clients
+    .filter(client => {
+      if (client.archive || !client.nextDate) {
+        return false;
+      }
+
+      const date = parseRuDate(client.nextDate);
+
+      if (!date) return false;
+
+      const time = date.getTime();
+
+      return time >= from && time <= to;
+    })
+    .sort((a, b) => {
+      const da = parseRuDate(a.nextDate);
+      const db = parseRuDate(b.nextDate);
+
+      const dateDiff =
+        (da ? da.getTime() : 0) -
+        (db ? db.getTime() : 0);
+
+      return dateDiff !== 0
+        ? dateDiff
+        : compareEvents(a, b);
+    });
+}
+
+function compareEvents(a, b) {
+  const timeA = a.nextTime || '99:99';
+  const timeB = b.nextTime || '99:99';
+
+  const timeDiff =
+    timeA.localeCompare(timeB);
+
+  if (timeDiff !== 0) {
+    return timeDiff;
+  }
+
+  return String(a.name || '')
+    .localeCompare(
+      String(b.name || ''),
+      'ru',
+      { sensitivity: 'base' }
+    );
+}
+
+function renderEventCounters() {
+  const today =
+    startOfLocalDay(new Date());
+
+  const tomorrow =
+    addDays(today, 1);
+
+  const weekEnd =
+    addDays(today, 6);
+
+  const todayCount =
+    clientsForDate(today).length;
+
+  const tomorrowCount =
+    clientsForDate(tomorrow).length;
+
+  const weekCount =
+    clientsForPeriod(today, weekEnd).length;
+
+  setEventCounter(
+    'eventToday',
+    'eventTodayCount',
+    todayCount
+  );
+
+  setEventCounter(
+    'eventTomorrow',
+    'eventTomorrowCount',
+    tomorrowCount
+  );
+
+  setEventCounter(
+    'eventWeek',
+    'eventWeekCount',
+    weekCount
+  );
+}
+
+function setEventCounter(buttonId, countId, count) {
+  document.getElementById(countId).textContent =
+    String(count);
+
+  document.getElementById(buttonId)
+    .classList.toggle(
+      'has-events',
+      count > 0
+    );
+}
+
+function openEvents(mode) {
+  const today =
+    startOfLocalDay(new Date());
+
+  let clients = [];
+  let title = '';
+
+  if (mode === 'today') {
+    clients =
+      clientsForDate(today);
+
+    title =
+      'Сегодня · ' +
+      dateKey(today);
+
+  } else if (mode === 'tomorrow') {
+    const tomorrow =
+      addDays(today, 1);
+
+    clients =
+      clientsForDate(tomorrow);
+
+    title =
+      'Завтра · ' +
+      dateKey(tomorrow);
+
+  } else {
+    const weekEnd =
+      addDays(today, 6);
+
+    clients =
+      clientsForPeriod(
+        today,
+        weekEnd
+      );
+
+    title = 'Ближайшие 7 дней';
+  }
+
+  document.getElementById('eventsTitle').textContent =
+    title;
+
+  renderEventsList(clients);
+
+  document.getElementById('eventsOverlay')
+    .classList.remove('hidden');
+}
+
+function closeEvents() {
+  document.getElementById('eventsOverlay')
+    .classList.add('hidden');
+}
+
+function renderEventsList(clients) {
+  const box =
+    document.getElementById('eventsContent');
+
+  if (!clients.length) {
+    box.innerHTML =
+      '<div class="empty">Событий нет</div>';
+
+    return;
+  }
+
+  const groups = {};
+
+  clients.forEach(client => {
+    const key =
+      client.nextDate || 'Без даты';
+
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+
+    groups[key].push(client);
+  });
+
+  box.innerHTML =
+    Object.keys(groups)
+      .map(date => {
+        const cards =
+          groups[date]
+            .map(client => eventCardHtml(client))
+            .join('');
+
+        return (
+          '<div class="event-date-group">' +
+            '<div class="event-date-title">' +
+              esc(date) +
+            '</div>' +
+            cards +
+          '</div>'
+        );
+      })
+      .join('');
+}
+
+function eventCardHtml(client) {
+  const time =
+    client.nextTime || '—';
+
+  const caseLine =
+    client.caseNumber
+      ? '⚖️ ' + esc(client.caseNumber)
+      : '';
+
+  const judgeLine =
+    client.judge
+      ? '👤 ' + esc(client.judge)
+      : '';
+
+  const statusLine =
+    client.status
+      ? '📌 ' + esc(client.status)
+      : '';
+
+  const commentLine =
+    client.comment
+      ? '💬 ' + esc(client.comment)
+      : '';
+
+  return (
+    '<div class="event-card" onclick="openClient(\\'' +
+      escAttr(client.id) +
+    '\\')">' +
+
+      '<div class="event-time">' +
+        esc(time) +
+      '</div>' +
+
+      '<div class="event-name">' +
+        esc(client.name || 'Клиент') +
+      '</div>' +
+
+      '<div class="event-meta">' +
+        [
+          caseLine,
+          judgeLine,
+          statusLine,
+          commentLine
+        ]
+          .filter(Boolean)
+          .join('<br>') +
+      '</div>' +
+    '</div>'
+  );
+}
+
 
 function buildTabs() {
   const tabs = ['Все клиенты'].concat(state.statuses || []);
@@ -1187,6 +1607,7 @@ function refreshClients() {
   return apiCall('apiGetClients', [false])
     .then(clients => {
       state.clients = clients || [];
+      renderEventCounters();
 
       if (state.activeTab === 'Архив') {
         return apiCall('apiGetClients', [true])
