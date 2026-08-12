@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Clients CRM v1.0.1</title>
+  <title>Clients CRM v1.0.2</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -426,6 +426,39 @@
 
     .user-state {
       margin-top: 10px;
+    }
+
+    .phone-value {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .phone-number-link {
+      color: var(--button);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .phone-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .phone-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--card);
+      color: var(--button);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
     }
 
     .quick-grid {
@@ -1574,7 +1607,23 @@ function clientCardHtml(client) {
         '<div class="status">' + esc(client.status || '—') + '</div>' +
       '</div>' +
 
-      '<div class="client-line">📞 ' + esc(client.phone || '—') + '</div>' +
+      '<div class="client-line">📞 ' +
+        (
+          client.phone
+            ? '<a href="tel:+' +
+                escAttr(
+                  normalizePhoneDigits(
+                    client.phone
+                  )
+                ) +
+              '" onclick="event.stopPropagation()">' +
+                esc(
+                  client.phone
+                ) +
+              '</a>'
+            : '—'
+        ) +
+      '</div>' +
       event +
       comment +
     '</div>'
@@ -1608,6 +1657,97 @@ function closeClient() {
   state.currentClientData = null;
 }
 
+
+function normalizePhoneDigits(phone) {
+  let digits =
+    String(
+      phone || ''
+    ).replace(
+      /\D/g,
+      ''
+    );
+
+  if (!digits) {
+    return '';
+  }
+
+  // Российский 8XXXXXXXXXX -> 7XXXXXXXXXX
+  if (
+    digits.length === 11 &&
+    digits.charAt(0) === '8'
+  ) {
+    digits =
+      '7' +
+      digits.slice(1);
+  }
+
+  return digits;
+}
+
+
+function phoneDetailHtml(phone) {
+  const digits =
+    normalizePhoneDigits(
+      phone
+    );
+
+  if (!digits) {
+    return '—';
+  }
+
+  const display =
+    esc(
+      phone ||
+      ('+' + digits)
+    );
+
+  const telUrl =
+    'tel:+' +
+    digits;
+
+  /*
+   * Telegram official phone-number deep link.
+   * Telegram сам пытается разрешить номер в профиль/чат.
+   */
+  const telegramUrl =
+    'https://t.me/+' +
+    digits;
+
+  return (
+    '<div class="phone-value">' +
+
+      '<a class="phone-number-link" href="' +
+        escAttr(
+          telUrl
+        ) +
+      '">' +
+        display +
+      '</a>' +
+
+      '<div class="phone-actions">' +
+
+        '<a class="phone-action" href="' +
+          escAttr(
+            telUrl
+          ) +
+        '">' +
+          '📞 Позвонить' +
+        '</a>' +
+
+        '<a class="phone-action" href="' +
+          escAttr(
+            telegramUrl
+          ) +
+        '" target="_blank" rel="noopener noreferrer">' +
+          '✈️ Telegram' +
+        '</a>' +
+
+      '</div>' +
+    '</div>'
+  );
+}
+
+
 function renderClientDetail(data) {
   const client = data.client;
   const admin = data.role === 'ADMIN';
@@ -1617,12 +1757,11 @@ function renderClientDetail(data) {
 
   let html =
     '<div class="section">' +
-      detail('Телефон',
-        client.phone
-          ? '<a href="tel:' + escAttr(client.phone) + '">' +
-            esc(client.phone) +
-            '</a>'
-          : '—'
+      detail(
+        'Телефон',
+        phoneDetailHtml(
+          client.phone
+        )
       ) +
       detail('Статус', esc(client.status || '—')) +
       detail('Получил', esc(client.receivedDate || '—')) +
