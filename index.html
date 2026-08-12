@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Clients CRM v1.0.2</title>
+  <title>Clients CRM v1.0.3</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -435,9 +435,17 @@
     }
 
     .phone-number-link {
+      display: inline;
+      padding: 0;
+      border: 0;
+      background: transparent;
       color: var(--button);
-      text-decoration: none;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      font: inherit;
       font-weight: 600;
+      cursor: pointer;
+      text-align: left;
     }
 
     .phone-actions {
@@ -457,8 +465,10 @@
       background: var(--card);
       color: var(--button);
       text-decoration: none;
+      font-family: inherit;
       font-size: 13px;
       font-weight: 600;
+      cursor: pointer;
     }
 
     .quick-grid {
@@ -888,6 +898,11 @@ function boot() {
 
   document.getElementById('usersButton')
     .addEventListener('click', openUsers);
+
+  document.addEventListener(
+    'click',
+    handlePhoneActionClick
+  );
 
   apiCall('apiInit', [])
     .then(data => {
@@ -1610,17 +1625,19 @@ function clientCardHtml(client) {
       '<div class="client-line">📞 ' +
         (
           client.phone
-            ? '<a href="tel:+' +
+            ? '<button type="button" class="phone-number-link" ' +
+              'data-phone-action="call" ' +
+              'data-phone="' +
                 escAttr(
                   normalizePhoneDigits(
                     client.phone
                   )
                 ) +
-              '" onclick="event.stopPropagation()">' +
+              '">' +
                 esc(
                   client.phone
                 ) +
-              '</a>'
+              '</button>'
             : '—'
         ) +
       '</div>' +
@@ -1701,49 +1718,267 @@ function phoneDetailHtml(phone) {
       ('+' + digits)
     );
 
-  const telUrl =
-    'tel:+' +
-    digits;
-
-  /*
-   * Telegram official phone-number deep link.
-   * Telegram сам пытается разрешить номер в профиль/чат.
-   */
-  const telegramUrl =
-    'https://t.me/+' +
-    digits;
-
   return (
     '<div class="phone-value">' +
 
-      '<a class="phone-number-link" href="' +
-        escAttr(
-          telUrl
-        ) +
-      '">' +
+      '<button class="phone-number-link" ' +
+        'type="button" ' +
+        'data-phone-action="call" ' +
+        'data-phone="' +
+          escAttr(digits) +
+        '">' +
         display +
-      '</a>' +
+      '</button>' +
 
       '<div class="phone-actions">' +
 
-        '<a class="phone-action" href="' +
-          escAttr(
-            telUrl
-          ) +
-        '">' +
+        '<button class="phone-action" ' +
+          'type="button" ' +
+          'data-phone-action="call" ' +
+          'data-phone="' +
+            escAttr(digits) +
+          '">' +
           '📞 Позвонить' +
-        '</a>' +
+        '</button>' +
 
-        '<a class="phone-action" href="' +
-          escAttr(
-            telegramUrl
-          ) +
-        '" target="_blank" rel="noopener noreferrer">' +
+        '<button class="phone-action" ' +
+          'type="button" ' +
+          'data-phone-action="telegram" ' +
+          'data-phone="' +
+            escAttr(digits) +
+          '">' +
           '✈️ Telegram' +
-        '</a>' +
+        '</button>' +
+
+        '<button class="phone-action" ' +
+          'type="button" ' +
+          'data-phone-action="copy" ' +
+          'data-phone="' +
+            escAttr(digits) +
+          '">' +
+          '📋 Копировать' +
+        '</button>' +
 
       '</div>' +
     '</div>'
+  );
+}
+
+
+function handlePhoneActionClick(event) {
+  const button =
+    event.target.closest(
+      '[data-phone-action]'
+    );
+
+  if (!button) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const action =
+    button.dataset.phoneAction;
+
+  const digits =
+    normalizePhoneDigits(
+      button.dataset.phone
+    );
+
+  if (!digits) {
+    return;
+  }
+
+  if (action === 'call') {
+    callPhone(
+      digits
+    );
+    return;
+  }
+
+  if (action === 'telegram') {
+    openTelegramByPhone(
+      digits
+    );
+    return;
+  }
+
+  if (action === 'copy') {
+    copyPhoneNumber(
+      digits
+    );
+  }
+}
+
+
+function callPhone(digits) {
+  const normalized =
+    normalizePhoneDigits(
+      digits
+    );
+
+  if (!normalized) {
+    return;
+  }
+
+  const url =
+    'tel:+' +
+    normalized;
+
+  try {
+    window.location.assign(
+      url
+    );
+  } catch (error) {
+    try {
+      window.location.href =
+        url;
+    } catch (ignore) {
+      showPhoneMessage(
+        'Не удалось открыть набор номера. Номер: +' +
+        normalized
+      );
+    }
+  }
+}
+
+
+function openTelegramByPhone(digits) {
+  const normalized =
+    normalizePhoneDigits(
+      digits
+    );
+
+  if (!normalized) {
+    return;
+  }
+
+  const url =
+    'https://t.me/+' +
+    normalized;
+
+  try {
+    if (
+      window.Telegram &&
+      Telegram.WebApp &&
+      typeof Telegram.WebApp.openTelegramLink === 'function'
+    ) {
+      Telegram.WebApp.openTelegramLink(
+        url
+      );
+      return;
+    }
+  } catch (ignore) {}
+
+  window.open(
+    url,
+    '_blank'
+  );
+}
+
+
+async function copyPhoneNumber(digits) {
+  const normalized =
+    normalizePhoneDigits(
+      digits
+    );
+
+  if (!normalized) {
+    return;
+  }
+
+  const value =
+    '+' +
+    normalized;
+
+  let copied =
+    false;
+
+  try {
+    if (
+      navigator.clipboard &&
+      typeof navigator.clipboard.writeText === 'function'
+    ) {
+      await navigator.clipboard.writeText(
+        value
+      );
+      copied =
+        true;
+    }
+  } catch (ignore) {}
+
+  if (!copied) {
+    try {
+      const textarea =
+        document.createElement(
+          'textarea'
+        );
+
+      textarea.value =
+        value;
+
+      textarea.setAttribute(
+        'readonly',
+        ''
+      );
+
+      textarea.style.position =
+        'fixed';
+
+      textarea.style.left =
+        '-9999px';
+
+      textarea.style.top =
+        '0';
+
+      document.body.appendChild(
+        textarea
+      );
+
+      textarea.focus();
+      textarea.select();
+
+      textarea.setSelectionRange(
+        0,
+        value.length
+      );
+
+      copied =
+        document.execCommand(
+          'copy'
+        );
+
+      document.body.removeChild(
+        textarea
+      );
+    } catch (ignore) {}
+  }
+
+  showPhoneMessage(
+    copied
+      ? 'Номер скопирован: ' + value
+      : 'Не удалось скопировать автоматически. Номер: ' + value
+  );
+}
+
+
+function showPhoneMessage(message) {
+  try {
+    if (
+      window.Telegram &&
+      Telegram.WebApp &&
+      typeof Telegram.WebApp.showAlert === 'function'
+    ) {
+      Telegram.WebApp.showAlert(
+        message
+      );
+      return;
+    }
+  } catch (ignore) {}
+
+  alert(
+    message
   );
 }
 
